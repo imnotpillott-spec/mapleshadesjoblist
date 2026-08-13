@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maple Shades Job List</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --text-color: #c9d1d9;
+            --column-bg: #161b22;
+            --border-color: #30363d;
+            --accent-blue: #58a6ff;
+            --card-bg: #21262d;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0;
+            color: var(--accent-blue);
+            font-size: 24px;
+        }
+        .board {
+            display: flex;
+            gap: 20px;
+            flex-grow: 1;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+        .column {
+            background: var(--column-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            min-width: 320px;
+            width: 25%;
+            display: flex;
+            flex-direction: column;
+        }
+        .column-header {
+            padding: 15px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .count {
+            background: rgba(139, 148, 158, 0.2);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .task-list {
+            padding: 10px;
+            flex-grow: 1;
+            overflow-y: auto;
+            min-height: 100px;
+        }
+        .task-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: grab;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            user-select: none;
+        }
+        .task-card:active {
+            cursor: grabbing;
+        }
+        .task-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: #ffffff;
+        }
+        .task-desc {
+            font-size: 13px;
+            color: #8b949e;
+        }
+        .task-meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .dept-map { background: rgba(88, 166, 255, 0.15); color: var(--accent-blue); }
+        .dept-buildings { background: rgba(137, 87, 229, 0.15); color: #8957e5; }
+        .dept-scripting { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+        .dept-ui { background: rgba(210, 153, 34, 0.15); color: #d29922; }
+        .dept-jobs { background: rgba(255, 123, 114, 0.15); color: #ff7b72; }
+        .dept-qa { background: rgba(165, 214, 255, 0.15); color: #a5d6ff; }
+        
+        .pri-critical { color: #f85149; font-weight: bold; }
+        .pri-high { color: #d29922; font-weight: bold; }
+        .pri-medium { color: #58a6ff; }
+        .pri-low { color: #8b949e; }
+        
+        .budget-tag {
+            color: #3fb950;
+            font-family: monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Maple Shades Development Pipeline</h1>
+        <div style="font-size: 14px; color: #8b949e;">Drag and drop tasks to update status</div>
+    </header>
+
+    <div class="board">
+        <div class="column">
+            <div class="column-header">
+                <span>Not Started</span>
+                <span class="count" id="count-not-started">0</span>
+            </div>
+            <div class="task-list" id="not-started" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        </div>
+        
+        <div class="column">
+            <div class="column-header">
+                <span>In Progress</span>
+                <span class="count" id="count-in-progress">0</span>
+            </div>
+            <div class="task-list" id="in-progress" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        </div>
+
+        <div class="column">
+            <div class="column-header">
+                <span>Testing / QA</span>
+                <span class="count" id="count-testing">0</span>
+            </div>
+            <div class="task-list" id="testing" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        </div>
+
+        <div class="column">
+            <div class="column-header">
+                <span>Done</span>
+                <span class="count" id="count-done">0</span>
+            </div>
+            <div class="task-list" id="done" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        </div>
+    </div>
+
+    <script>
+        // Placeholder for Discord or custom backend webhook URL (leave empty string if not using yet)
+        const DISCORD_WEBHOOK_URL = ""; 
+
+        const mapleShadesJobs = [
+            { id: 1, dept: "Preproduction", task: "Map measurements", desc: "16x16 county blo", pri: "Critical", dev: "Lead Builder", time: "15h", budget: "1500" },
+            { id: 2, dept: "Map", task: "Create highway", desc: "2 major highways", pri: "Critical", dev: "Builder", time: "20h", budget: "2500" },
+            { id: 3, dept: "Map", task: "Create primary c", desc: "Cities/towns coni", pri: "Critical", dev: "Builder", time: "15h", budget: "1500" },
+            { id: 4, dept: "Map", task: "Create secondar", desc: "Town/neighborha", pri: "High", dev: "Builder", time: "12h", budget: "1000" },
+            { id: 5, dept: "Map", task: "Create residentia", desc: "Neighborhood sti", pri: "High", dev: "Builder", time: "10h", budget: "800" },
+            { id: 6, dept: "Map", task: "Create rural road", desc: "Farm and country", pri: "High", dev: "Builder", time: "10h", budget: "800" },
+            { id: 7, dept: "Map", task: "Road markings a", desc: "Lane markings/si", pri: "High", dev: "Builder", time: "8h", budget: "600" },
+            { id: 8, dept: "Map", task: "Highway signs ar", desc: "Directional signa", pri: "Medium", dev: "Builder", time: "6h", budget: "400" },
+            { id: 9, dept: "Map", task: "Main terrain sculj", desc: "Hills, valleys and", pri: "Critical", dev: "Terrain Builder", time: "20h", budget: "1800" },
+            { id: 10, dept: "Map", task: "Forests and natu", desc: "Forest terrain", pri: "High", dev: "Terrain Builder", time: "10h", budget: "900" },
+            { id: 11, dept: "Map", task: "Crop fields and fa", desc: "Farm terrain", pri: "High", dev: "Terrain Builder", time: "8h", budget: "700" },
+            { id: 12, dept: "Map", task: "Rivers and water", desc: "River/lake networ", pri: "Medium", dev: "Terrain Builder", time: "10h", budget: "900" },
+            { id: 13, dept: "Map", task: "Road bridges and", desc: "Bridges", pri: "High", dev: "Builder", time: "8h", budget: "700" },
+            { id: 14, dept: "Map", task: "Parks and green", desc: "City/town parks", pri: "Medium", dev: "Builder", time: "8h", budget: "600" },
+            { id: 15, dept: "Map", task: "Street furniture", desc: "Benches, bins, si", pri: "Medium", dev: "Builder", time: "10h", budget: "700" },
+            { id: 16, dept: "Map", task: "Utility infrastructu", desc: "Power poles, sut", pri: "Medium", dev: "Builder", time: "10h", budget: "800" },
+            { id: 17, dept: "Map", task: "Street lighting", desc: "Functional city/to", pri: "High", dev: "Builder", time: "10h", budget: "800" },
+            { id: 18, dept: "Map", task: "Environmental lig", desc: "Day/night atmost", pri: "High", dev: "Builder", time: "8h", budget: "700" },
+            { id: 19, dept: "Buildings", task: "City center", desc: "Core downtown t", pri: "Critical", dev: "Builder", time: "12h", budget: "1000" },
+            { id: 20, dept: "Buildings", task: "City government", desc: "Courthouse/gove", pri: "High", dev: "Builder", time: "10h", budget: "900" },
+            { id: 21, dept: "Buildings", task: "Police headquart", desc: "Main police facilit", pri: "Critical", dev: "Builder", time: "10h", budget: "1000" },
+            { id: 22, dept: "Buildings", task: "Fire headquarter", desc: "Main fire facility", pri: "High", dev: "Builder", time: "8h", budget: "800" },
+            { id: 23, dept: "Buildings", task: "Main hospital", desc: "Hospital + EMS f", pri: "Critical", dev: "Builder", time: "12h", budget: "1100" },
+            { id: 24, dept: "Buildings", task: "Commercial distr", desc: "Shops and busin", pri: "High", dev: "Builder", time: "15h", budget: "1200" },
+            { id: 25, dept: "Buildings", task: "Residential distri", desc: "Houses/apartme", pri: "High", dev: "Builder", time: "15h", budget: "1200" },
+            { id: 26, dept: "Buildings", task: "Secondary down", desc: "City center", pri: "High", dev: "Builder", time: "10h", budget: "900" },
+            { id: 27, dept: "Buildings", task: "Police station", desc: "Secondary police", pri: "Medium", dev: "Builder", time: "6h", budget: "500" },
+            { id: 28, dept: "Buildings", task: "Fire station", desc: "Secondary fire fa", pri: "Medium", dev: "Builder", time: "6h", budget: "500" },
+            { id: 29, dept: "Buildings", task: "Medical clinic", desc: "EMS/clinic buildir", pri: "Medium", dev: "Builder", time: "6h", budget: "500" },
+            { id: 30, dept: "Buildings", task: "Shopping district", desc: "Retail/commercia", pri: "High", dev: "Builder", time: "12h", budget: "900" },
+            { id: 31, dept: "Buildings", task: "Residential distric", desc: "Houses/apartme", pri: "High", dev: "Builder", time: "12h", budget: "900" },
+            { id: 32, dept: "Buildings", task: "Complete town la", desc: "Oakridge-style to", pri: "High", dev: "Builder", time: "8h", budget: "700" },
+            { id: 33, dept: "Buildings", task: "Town hall/govern", desc: "Town administrat", pri: "Medium", dev: "Builder", time: "4h", budget: "300" },
+            { id: 34, dept: "Buildings", task: "Businesses", desc: "Gas station/resta", pri: "Medium", dev: "Builder", time: "6h", budget: "450" },
+            { id: 35, dept: "Buildings", task: "Residential", desc: "Small homes/apa", pri: "Medium", dev: "Builder", time: "8h", budget: "600" },
+            { id: 36, dept: "Buildings", task: "Complete town la", desc: "Pine Valley-style", pri: "High", dev: "Builder", time: "8h", budget: "700" },
+            { id: 37, dept: "Buildings", task: "Farm supply stor", desc: "Agricultural busir", pri: "Medium", dev: "Builder", time: "4h", budget: "300" },
+            { id: 38, dept: "Buildings", task: "General busines", desc: "Shops/gas/restat", pri: "Medium", dev: "Builder", time: "6h", budget: "450" },
+            { id: 39, dept: "Buildings", task: "Residential", desc: "Small homes", pri: "Medium", dev: "Builder", time: "8h", budget: "600" },
+            { id: 40, dept: "Buildings", task: "Complete town la", desc: "Cedar-style town", pri: "High", dev: "Builder", time: "8h", budget: "700" },
+            { id: 41, dept: "Buildings", task: "Highway busines", desc: "Truck stop", pri: "High", dev: "Builder", time: "6h", budget: "500" },
+            { id: 42, dept: "Buildings", task: "Motel", desc: "Highway lodging", pri: "Medium", dev: "Builder", time: "5h", budget: "350" },
+            { id: 43, dept: "Buildings", task: "Automotive busir", desc: "Repair shop", pri: "Medium", dev: "Builder", time: "5h", budget: "350" },
+            { id: 44, dept: "Buildings", task: "Complete town la", desc: "Westbrook-style", pri: "High", dev: "Builder", time: "8h", budget: "700" },
+            { id: 45, dept: "Buildings", task: "School building", desc: "School", pri: "Medium", dev: "Builder", time: "7h", budget: "500" },
+            { id: 46, dept: "Buildings", task: "Community recre", desc: "Parks", pri: "Medium", dev: "Builder", time: "4h", budget: "300" },
+            { id: 47, dept: "Buildings", task: "Small businesses", desc: "Commercial strip", pri: "Medium", dev: "Builder", time: "6h", budget: "450" },
+            { id: 48, dept: "Buildings", task: "Maple Grove sub", desc: "Residential neigh", pri: "High", dev: "Builder", time: "10h", budget: "800" },
+            { id: 49, dept: "Buildings", task: "Riverside neighb", desc: "Waterfront neighl", pri: "High", dev: "Builder", time: "10h", budget: "800" },
+            { id: 50, dept: "Buildings", task: "Luxury neighbort", desc: "Hillside Estates", pri: "High", dev: "Builder", time: "10h", budget: "800" },
+            { id: 51, dept: "Buildings", task: "Farms", desc: "Crops/barns/silos", pri: "High", dev: "Builder", time: "10h", budget: "700" },
+            { id: 52, dept: "Buildings", task: "Farms", desc: "Dairy/crops/equip", pri: "High", dev: "Builder", time: "10h", budget: "700" },
+            { id: 53, dept: "Buildings", task: "Industrial district", desc: "Warehouses/logi", pri: "High", dev: "Builder", time: "12h", budget: "900" },
+            { id: 54, dept: "Buildings", task: "DOT yard", desc: "DOT operations", pri: "High", dev: "Builder", time: "6h", budget: "450" },
+            { id: 55, dept: "Buildings", task: "Construction yar", desc: "Construction con", pri: "Medium", dev: "Builder", time: "6h", budget: "450" },
+            { id: 56, dept: "Buildings", task: "Truck depot", desc: "Commercial truck", pri: "Medium", dev: "Builder", time: "6h", budget: "450" },
+            { id: 57, dept: "Buildings", task: "Filler commercial", desc: "Generic stores/of", pri: "High", dev: "Builder", time: "15h", budget: "1000" },
+            { id: 58, dept: "Buildings", task: "Filler residential", desc: "Generic homes/a", pri: "High", dev: "Builder", time: "15h", budget: "1000" },
+            { id: 59, dept: "Buildings", task: "Filler industrial", desc: "Generic warehou", pri: "Medium", dev: "Builder", time: "8h", budget: "500" },
+            { id: 60, dept: "Buildings", task: "Background stru", desc: "Non-enterable bu", pri: "Medium", dev: "Builder", time: "10h", budget: "600" },
+            { id: 61, dept: "Buildings", task: "Filler", desc: "Trash cans, sign", pri: "Medium", dev: "Builder", time: "10h", budget: "500" },
+            { id: 62, dept: "Buildings", task: "Interior starter pa", desc: "Houses/stores/of", pri: "High", dev: "Builder", time: "15h", budget: "1000" },
+            { id: 63, dept: "Scripting", task: "Player data syste", desc: "Cash/jobs/vehicle", pri: "Critical", dev: "Scripter", time: "20h", budget: "1800" },
+            { id: 64, dept: "Scripting", task: "DataStore archite", desc: "Secure persisten", pri: "Critical", dev: "Scripter", time: "20h", budget: "2000" },
+            { id: 65, dept: "Scripting", task: "Notification syste", desc: "Global notification", pri: "High", dev: "Scripter/UI", time: "10h", budget: "700" },
+            { id: 66, dept: "Scripting", task: "Health system", desc: "Health/injury fran", pri: "High", dev: "Scripter", time: "12h", budget: "700" },
+            { id: 67, dept: "Scripting", task: "Stamina system", desc: "Sprinting/stamina", pri: "Medium", dev: "Scripter", time: "8h", budget: "500" },
+            { id: 68, dept: "Scripting", task: "Time system", desc: "35 real minutes =", pri: "High", dev: "Scripter", time: "10h", budget: "700" },
+            { id: 69, dept: "Scripting", task: "Weather system", desc: "Rain/fog/storm/sr", pri: "High", dev: "Scripter", time: "15h", budget: "1000" },
+            { id: 70, dept: "Scripting", task: "Lighting controlle", desc: "Dynamic day/nig", pri: "High", dev: "Scripter", time: "10h", budget: "700" },
+            { id: 71, dept: "UI", task: "GUI design syste", desc: "Shared UI compo", pri: "High", dev: "UI Developer", time: "15h", budget: "1200" },
+            { id: 72, dept: "UI", task: "Player HUD", desc: "Health/stamina/ti", pri: "High", dev: "UI Developer", time: "12h", budget: "900" },
+            { id: 73, dept: "UI", task: "Phone", desc: "Phone interface", pri: "High", dev: "UI Developer", time: "20h", budget: "1500" },
+            { id: 74, dept: "UI", task: "Notification UI", desc: "Notifications", pri: "High", dev: "UI Developer", time: "8h", budget: "500" },
+            { id: 75, dept: "UI", task: "Vehicle dashboai", desc: "Vehicle UI", pri: "High", dev: "UI Developer", time: "10h", budget: "700" },
+            { id: 76, dept: "UI", task: "Bank UI", desc: "Banking interface", pri: "Medium", dev: "UI Developer", time: "8h", budget: "500" },
+            { id: 77, dept: "UI", task: "Job UI", desc: "Job selection/pro", pri: "Medium", dev: "UI Developer", time: "8h", budget: "500" },
+            { id: 78, dept: "UI", task: "Property UI", desc: "Property manage", pri: "Medium", dev: "UI Developer", time: "10h", budget: "700" },
+            { id: 79, dept: "Economy", task: "Checking/saving", desc: "Core banking", pri: "High", dev: "Scripter", time: "15h", budget: "1000" },
+            { id: 80, dept: "Economy", task: "Cash/wallet syste", desc: "Currency", pri: "High", dev: "Scripter", time: "8h", budget: "500" },
+            { id: 81, dept: "Economy", task: "Job payment sys", desc: "Paychecks", pri: "High", dev: "Scripter", time: "10h", budget: "600" },
+            { id: 82, dept: "Economy", task: "Taxes", desc: "Property/busines", pri: "Medium", dev: "Scripter", time: "10h", budget: "600" },
+            { id: 83, dept: "Economy", task: "Vehicle fees", desc: "Registration/insu", pri: "Medium", dev: "Scripter", time: "8h", budget: "500" },
+            { id: 84, dept: "Economy", task: "Economy configu", desc: "Admin-adjustable", pri: "Medium", dev: "Scripter", time: "8h", budget: "500" },
+            { id: 85, dept: "Vehicles", task: "Vehicle framewor", desc: "Spawn/ownershij", pri: "Critical", dev: "Scripter", time: "20h", budget: "1600" },
+            { id: 86, dept: "Vehicles", task: "Vehicle purchase", desc: "Dealerships", pri: "High", dev: "Scripter/UI", time: "15h", budget: "1000" },
+            { id: 87, dept: "Vehicles", task: "Fuel consumption", desc: "Fuel", pri: "High", dev: "Scripter", time: "10h", budget: "600" },
+            { id: 88, dept: "Vehicles", task: "Insurance systen", desc: "Insurance", pri: "Medium", dev: "Scripter", time: "10h", budget: "600" },
+            { id: 89, dept: "Vehicles", task: "Mileage tracking", desc: "Mileage", pri: "Medium", dev: "Scripter", time: "8h", budget: "450" },
+            { id: 90, dept: "Vehicles", task: "Vehicle condition", desc: "Maintenance", pri: "High", dev: "Scripter", time: "10h", budget: "600" },
+            { id: 91, dept: "Vehicles", task: "Vehicle storage/s", desc: "Garage", pri: "High", dev: "Scripter/UI", time: "12h", budget: "800" },
+            { id: 92, dept: "Vehicles", task: "Vehicle key owne", desc: "Keys", pri: "High", dev: "Scripter", time: "8h", budget: "450" },
+            { id: 93, dept: "Vehicles", task: "Impound", desc: "Police/DOT impo", pri: "High", dev: "Scripter", time: "10h", budget: "600" },
+            { id: 94, dept: "Housing", task: "Property framew", desc: "Buy/rent/ownerst", pri: "Critical", dev: "Scripter", time: "15h", budget: "1000" },
+            { id: 95, dept: "Housing", task: "Property permiss", desc: "Owner/tenant per", pri: "High", dev: "Scripter", time: "8h", budget: "500" },
+            { id: 96, dept: "Housing", task: "Garages", desc: "Property garage", pri: "High", dev: "Scripter", time: "8h", budget: "500" },
+            { id: 97, dept: "Housing", task: "Home storage sy", desc: "Storage", pri: "Medium", dev: "Scripter", time: "8h", budget: "500" },
+            { id: 98, dept: "Housing", task: "Furniture placem", desc: "Furniture", pri: "Medium", dev: "Scripter", time: "12h", budget: "700" },
+            { id: 99, dept: "Jobs", task: "Delivery driver", desc: "Basic progressio", pri: "Medium", dev: "Scripter", time: "8h", budget: "450" },
+            { id: 100, dept: "Jobs", task: "Taxi", desc: "Basic progressio", pri: "Medium", dev: "Scripter", time: "8h", budget: "450" },
+            { id: 101, dept: "Jobs", task: "Trucking", desc: "Long-distance tru", pri: "High", dev: "Scripter", time: "12h", budget: "650" },
+            { id: 102, dept: "Jobs", task: "Garbage", desc: "Routes and payo", pri: "Medium", dev: "Scripter", time: "8h", budget: "400" },
+            { id: 103, dept: "Jobs", task: "Postal", desc: "Routes and pack", pri: "Medium", dev: "Scripter", time: "8h", budget: "400" },
+            { id: 104, dept: "Jobs", task: "Bus", desc: "Routes/stops/pas", pri: "Medium", dev: "Scripter", time: "10h", budget: "500" },
+            { id: 105, dept: "Jobs", task: "Tow", desc: "Vehicle recovery", pri: "High", dev: "Scripter", time: "10h", budget: "550" },
+            { id: 106, dept: "Jobs", task: "Mechanic", desc: "Vehicle repair jot", pri: "High", dev: "Scripter", time: "10h", budget: "550" },
+            { id: 107, dept: "Jobs", task: "Construction", desc: "Construction wor", pri: "Medium", dev: "Scripter", time: "10h", budget: "500" },
+            { id: 108, dept: "Jobs", task: "Farming", desc: "Farmer", pri: "Medium", dev: "Scripter", time: "12h", budget: "550" },
+            { id: 109, dept: "Jobs", task: "Retail", desc: "Retail employee", pri: "Medium", dev: "Scripter", time: "8h", budget: "400" },
+            { id: 110, dept: "Jobs", task: "Restaurant", desc: "Restaurant work", pri: "Medium", dev: "Scripter", time: "8h", budget: "400" },
+            { id: 111, dept: "Departments", task: "Police framework", desc: "Rank/equipment", pri: "Critical", dev: "Scripter", time: "20h", budget: "1600" },
+            { id: 112, dept: "Departments", task: "Fire framework", desc: "Units/equipment", pri: "Critical", dev: "Scripter", time: "15h", budget: "1200" },
+            { id: 113, dept: "Departments", task: "EMS framework", desc: "Units/patient syst", pri: "Critical", dev: "Scripter", time: "15h", budget: "1200" },
+            { id: 114, dept: "Departments", task: "DOT framework", desc: "Work orders/clos", pri: "High", dev: "Scripter", time: "15h", budget: "1100" },
+            { id: 115, dept: "Departments", task: "CAD foundation", desc: "Calls/unit manag", pri: "Critical", dev: "Scripter/UI", time: "20h", budget: "1600" },
+            { id: 116, dept: "Departments", task: "Dispatch/call gen", desc: "Calls and statuse", pri: "High", dev: "Scripter", time: "15h", budget: "1100" },
+            { id: 117, dept: "Departments", task: "Police MDT", desc: "Records/warrant", pri: "High", dev: "Scripter/UI", time: "15h", budget: "1000" },
+            { id: 118, dept: "Audio", task: "Vehicle audio", desc: "Engine/siren sou", pri: "Medium", dev: "Sound Designer", time: "12h", budget: "700" },
+            { id: 119, dept: "Audio", task: "Environment aud", desc: "Rain/wind/ambie", pri: "Medium", dev: "Sound Designer", time: "10h", budget: "500" },
+            { id: 120, dept: "Audio", task: "UI audio", desc: "Clicks/alerts/notif", pri: "Low", dev: "Sound Designer", time: "8h", budget: "400" },
+            { id: 121, dept: "Audio", task: "Emergency audic", desc: "Sirens/radios", pri: "Medium", dev: "Sound Designer", time: "10h", budget: "600" },
+            { id: 122, dept: "QA", task: "Map testing", desc: "Collision/holes/op", pri: "High", dev: "QA", time: "12h", budget: "700" },
+            { id: 123, dept: "QA", task: "System testing", desc: "Regression testir", pri: "Critical", dev: "QA", time: "15h", budget: "900" },
+            { id: 124, dept: "QA", task: "Mobile testing", desc: "Mobile UI/perforn", pri: "High", dev: "QA", time: "10h", budget: "600" },
+            { id: 125, dept: "QA", task: "Exploit/security to", desc: "Remote/permissi", pri: "Critical", dev: "QA", time: "12h", budget: "800" },
+            { id: 126, dept: "QA", task: "Multiplayer testin", desc: "20+ player testin", pri: "High", dev: "QA", time: "10h", budget: "500" },
+            { id: 127, dept: "Release", task: "Final integration", desc: "Connect all syste", pri: "Critical", dev: "Lead Scripter", time: "15h", budget: "1000" },
+            { id: 128, dept: "Release", task: "Final optimizatior", desc: "Performance pas", pri: "Critical", dev: "Lead Developer", time: "12h", budget: "800" },
+            { id: 129, dept: "Release", task: "Bug Fixing", desc: "Release blocker", pri: "Critical", dev: "All Leads", time: "15h", budget: "1200" },
+            { id: 130, dept: "Reserve", task: "Emergency deve", desc: "Unexpected bugs", pri: "Critical", dev: "Project Lead", time: "N/A", budget: "7000" }
+        ];
+
+        function getDeptClass(dept) {
+            dept = dept.toLowerCase();
+            if (dept.includes('map') || dept.includes('preproduction')) return 'dept-map';
+            if (dept.includes('building')) return 'dept-buildings';
+            if (dept.includes('scripting') || dept.includes('vehicle') || dept.includes('department') || dept.includes('economy')) return 'dept-scripting';
+            if (dept.includes('ui') || dept.includes('audio')) return 'dept-ui';
+            if (dept.includes('job') || dept.includes('housing')) return 'dept-jobs';
+            if (dept.includes('qa') || dept.includes('release') || dept.includes('reserve')) return 'dept-qa';
+            return 'dept-map'; 
+        }
+
+        function getPriClass(pri) {
+            pri = pri.toLowerCase();
+            if (pri === 'critical') return 'pri-critical';
+            if (pri === 'high') return 'pri-high';
+            if (pri === 'low') return 'pri-low';
+            return 'pri-medium';
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('not-started');
+            
+            mapleShadesJobs.forEach(job => {
+                const card = document.createElement('div');
+                card.className = 'task-card';
+                card.id = 'task-' + job.id;
+                card.draggable = true;
+                card.ondragstart = drag;
+
+                card.innerHTML = `
+                    <div class="task-title">#${job.id} - ${job.task}</div>
+                    <div class="task-desc">${job.desc} | <b>Assigned:</b> ${job.dev}</div>
+                    <div class="task-meta-row">
+                        <span class="badge ${getDeptClass(job.dept)}">${job.dept}</span>
+                        <span class="${getPriClass(job.pri)}">${job.pri}</span>
+                    </div>
+                    <div class="task-meta-row">
+                        <span>⏱️ ${job.time}</span>
+                        <span class="budget-tag">R$ ${job.budget}</span>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+            updateCounts();
+        }
+
+        function allowDrop(ev) { ev.preventDefault(); }
+        function drag(ev) { ev.dataTransfer.setData("text", ev.currentTarget.id); }
+        
+        function drop(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            const element = document.getElementById(data);
+            
+            let targetList = ev.target;
+            while (!targetList.classList.contains('task-list') && targetList !== document.body) {
+                targetList = targetList.parentElement;
+            }
+            
+            if (targetList.classList.contains('task-list')) {
+                targetList.appendChild(element);
+                updateCounts();
+                sendWebhookNotification(element.id, targetList.id);
+            }
+        }
+
+        // Safe webhook function that checks if URL is provided before attempting fetch
+        function sendWebhookNotification(taskId, targetColumn) {
+            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.trim() === "") {
+                return; // Skips execution safely if no webhook has been added yet
+            }
+
+            const payload = {
+                content: `Task **${taskId}** moved to column: **${targetColumn}**`
+            };
+
+            fetch(DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(err => console.log("Webhook skipped or failed safely:", err));
+        }
+
+        function updateCounts() {
+            document.getElementById('count-not-started').textContent = document.getElementById('not-started').children.length;
+            document.getElementById('count-in-progress').textContent = document.getElementById('in-progress').children.length;
+            document.getElementById('count-testing').textContent = document.getElementById('testing').children.length;
+            document.getElementById('count-done').textContent = document.getElementById('done').children.length;
+        }
+
+        window.onload = renderTasks;
+    </script>
+</body>
+</html>
